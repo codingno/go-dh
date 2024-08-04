@@ -6,12 +6,21 @@ import (
 	"encoding/base64"
 )
 
+type PublicKey struct {
+  *ecdh.PublicKey
+}
+
+type PrivateKey struct {
+  *ecdh.PrivateKey
+}
+
 type DiffiHellman struct {
-  PrivateKey *ecdh.PrivateKey
-  PublicKey *ecdh.PublicKey
+  PrivateKey *PrivateKey
+  PublicKey *PublicKey
 }
 
 func NewDiffieHellman() *DiffiHellman {
+
   dh := ecdh.X25519()
   privateKey, err := dh.GenerateKey(rand.Reader)
   if err != nil {
@@ -20,20 +29,31 @@ func NewDiffieHellman() *DiffiHellman {
   publicKey := privateKey.PublicKey()
 
   return &DiffiHellman{
-    privateKey,
-    publicKey,
+    &PrivateKey{privateKey},
+    &PublicKey{publicKey},
   }
 }
 
-func (dh *DiffiHellman) SharedSecret(publicKeyString string) ([]byte, error){
-  publicKeyByte, err := base64.StdEncoding.DecodeString(publicKeyString)
-  if err != nil {
-    return nil, err
-  }
-  publicKey, err := ecdh.X25519().NewPublicKey(publicKeyByte)
+func (dh *DiffiHellman) SharedSecret(publicKeyByte []byte) ([]byte, error){
+
+  publicKey, err := NewPublicKey(publicKeyByte)
   if err != nil {
     return nil, err
   }
 
-  return dh.PrivateKey.ECDH(publicKey)
+  return dh.PrivateKey.ECDH(publicKey.PublicKey)
+}
+
+func NewPublicKey(publicKeyByte []byte) (*PublicKey, error) {
+
+  publicKey, err := ecdh.X25519().NewPublicKey(publicKeyByte)
+  return &PublicKey{publicKey}, err
+}
+
+func (p *PublicKey) ToString() (string) {
+  return base64.StdEncoding.EncodeToString(p.Bytes())
+}
+
+func (p *PrivateKey) ToString() (string) {
+  return base64.StdEncoding.EncodeToString(p.Bytes())
 }
